@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS dns.dns_logs
 ENGINE = MergeTree
 PARTITION BY toYYYYMMDD(timestamp)
 ORDER BY (toStartOfHour(timestamp), client_ip, qname)
-TTL timestamp + INTERVAL 7 DAY
+TTL timestamp + INTERVAL 30 DAY
 SETTINGS index_granularity = 8192,
          min_bytes_for_wide_part = 0,
          min_rows_for_wide_part = 0;
