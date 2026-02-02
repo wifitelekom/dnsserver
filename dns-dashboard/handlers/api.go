@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -15,11 +16,20 @@ import (
 func ApiStats(c *fiber.Ctx) error {
 	stats := models.DashboardStats{}
 
-	db.DB.QueryRow("SELECT count() FROM dns_logs WHERE response_type = 'CQ'").Scan(&stats.TotalQueries)
-	db.DB.QueryRow("SELECT count() FROM dns_logs WHERE response_type = 'CQ' AND timestamp >= today()").Scan(&stats.TodayQueries)
-	db.DB.QueryRow("SELECT uniq(client_ip) FROM dns_logs WHERE response_type = 'CQ' AND timestamp >= today()").Scan(&stats.UniqueClients)
-	db.DB.QueryRow("SELECT uniq(qname) FROM dns_logs WHERE response_type = 'CQ' AND timestamp >= today()").Scan(&stats.UniqueDomains)
-	db.DB.QueryRow("SELECT count() / 60.0 FROM dns_logs WHERE response_type = 'CQ' AND timestamp >= now() - INTERVAL 1 MINUTE").Scan(&stats.QPS)
+	// Optimized: Single query instead of 5 separate queries
+	err := db.DB.QueryRow(`
+		SELECT 
+			countIf(response_type = 'CQ') as total_queries,
+			countIf(response_type = 'CQ' AND timestamp >= today()) as today_queries,
+			uniqIf(client_ip, response_type = 'CQ' AND timestamp >= today()) as unique_clients,
+			uniqIf(qname, response_type = 'CQ' AND timestamp >= today()) as unique_domains,
+			countIf(response_type = 'CQ' AND timestamp >= now() - INTERVAL 1 MINUTE) / 60.0 as qps
+		FROM dns_logs
+	`).Scan(&stats.TotalQueries, &stats.TodayQueries, &stats.UniqueClients, &stats.UniqueDomains, &stats.QPS)
+	if err != nil {
+		log.Printf("ApiStats query failed: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "database error"})
+	}
 	stats.CacheHitRatio = -1
 
 	return c.JSON(stats)
@@ -35,6 +45,7 @@ func ApiQueryTypes(c *fiber.Ctx) error {
 		LIMIT 10
 	`)
 	if err != nil {
+		log.Printf("ApiQueryTypes query failed: %v", err)
 		return c.JSON([]models.QueryTypeStats{})
 	}
 	defer rows.Close()
@@ -43,9 +54,15 @@ func ApiQueryTypes(c *fiber.Ctx) error {
 	for rows.Next() {
 		var s models.QueryTypeStats
 		var qtype uint16
-		rows.Scan(&qtype, &s.Count)
+		if err := rows.Scan(&qtype, &s.Count); err != nil {
+			log.Printf("ApiQueryTypes scan failed: %v", err)
+			continue
+		}
 		s.Type = qtypeToString(qtype)
 		results = append(results, s)
+	}
+	if err := rows.Err(); err != nil {
+		log.Printf("ApiQueryTypes rows error: %v", err)
 	}
 	return c.JSON(results)
 }
@@ -59,6 +76,7 @@ func ApiResponseCodes(c *fiber.Ctx) error {
 		ORDER BY cnt DESC
 	`)
 	if err != nil {
+		log.Printf("ApiResponseCodes query failed: %v", err)
 		return c.JSON([]models.ResponseCodeStats{})
 	}
 	defer rows.Close()
@@ -67,9 +85,15 @@ func ApiResponseCodes(c *fiber.Ctx) error {
 	for rows.Next() {
 		var s models.ResponseCodeStats
 		var rcode uint8
-		rows.Scan(&rcode, &s.Count)
+		if err := rows.Scan(&rcode, &s.Count); err != nil {
+			log.Printf("ApiResponseCodes scan failed: %v", err)
+			continue
+		}
 		s.Code = rcodeToString(rcode)
 		results = append(results, s)
+	}
+	if err := rows.Err(); err != nil {
+		log.Printf("ApiResponseCodes rows error: %v", err)
 	}
 	return c.JSON(results)
 }
@@ -84,6 +108,7 @@ func ApiTopDomains(c *fiber.Ctx) error {
 		LIMIT 20
 	`)
 	if err != nil {
+		log.Printf("ApiTopDomains query failed: %v", err)
 		return c.JSON([]models.TopDomain{})
 	}
 	defer rows.Close()
@@ -91,8 +116,14 @@ func ApiTopDomains(c *fiber.Ctx) error {
 	var results []models.TopDomain
 	for rows.Next() {
 		var s models.TopDomain
-		rows.Scan(&s.Domain, &s.Count)
+		if err := rows.Scan(&s.Domain, &s.Count); err != nil {
+			log.Printf("ApiTopDomains scan failed: %v", err)
+			continue
+		}
 		results = append(results, s)
+	}
+	if err := rows.Err(); err != nil {
+		log.Printf("ApiTopDomains rows error: %v", err)
 	}
 	return c.JSON(results)
 }
@@ -107,6 +138,7 @@ func ApiTopClients(c *fiber.Ctx) error {
 		LIMIT 20
 	`)
 	if err != nil {
+		log.Printf("ApiTopClients query failed: %v", err)
 		return c.JSON([]models.TopClient{})
 	}
 	defer rows.Close()
@@ -114,8 +146,14 @@ func ApiTopClients(c *fiber.Ctx) error {
 	var results []models.TopClient
 	for rows.Next() {
 		var s models.TopClient
-		rows.Scan(&s.IP, &s.Count)
+		if err := rows.Scan(&s.IP, &s.Count); err != nil {
+			log.Printf("ApiTopClients scan failed: %v", err)
+			continue
+		}
 		results = append(results, s)
+	}
+	if err := rows.Err(); err != nil {
+		log.Printf("ApiTopClients rows error: %v", err)
 	}
 	return c.JSON(results)
 }
@@ -131,6 +169,7 @@ func ApiRecentQueries(c *fiber.Ctx) error {
 		LIMIT 50
 	`)
 	if err != nil {
+		log.Printf("ApiRecentQueries query failed: %v", err)
 		return c.JSON([]models.RecentQuery{})
 	}
 	defer rows.Close()
@@ -139,9 +178,15 @@ func ApiRecentQueries(c *fiber.Ctx) error {
 	for rows.Next() {
 		var q models.RecentQuery
 		var qtype uint16
-		rows.Scan(&q.Timestamp, &q.ClientIP, &q.Domain, &qtype, &q.ResponseType)
+		if err := rows.Scan(&q.Timestamp, &q.ClientIP, &q.Domain, &qtype, &q.ResponseType); err != nil {
+			log.Printf("ApiRecentQueries scan failed: %v", err)
+			continue
+		}
 		q.Type = qtypeToString(qtype)
 		results = append(results, q)
+	}
+	if err := rows.Err(); err != nil {
+		log.Printf("ApiRecentQueries rows error: %v", err)
 	}
 	return c.JSON(results)
 }
@@ -157,6 +202,7 @@ func ApiTimeline(c *fiber.Ctx) error {
 		ORDER BY minute
 	`)
 	if err != nil {
+		log.Printf("ApiTimeline query failed: %v", err)
 		return c.JSON([]map[string]interface{}{})
 	}
 	defer rows.Close()
@@ -165,11 +211,17 @@ func ApiTimeline(c *fiber.Ctx) error {
 	for rows.Next() {
 		var minute time.Time
 		var count int64
-		rows.Scan(&minute, &count)
+		if err := rows.Scan(&minute, &count); err != nil {
+			log.Printf("ApiTimeline scan failed: %v", err)
+			continue
+		}
 		results = append(results, map[string]interface{}{
 			"time":  minute.Format("15:04"),
 			"count": count,
 		})
+	}
+	if err := rows.Err(); err != nil {
+		log.Printf("ApiTimeline rows error: %v", err)
 	}
 	return c.JSON(results)
 }
@@ -244,7 +296,8 @@ func ApiLogs(c *fiber.Ctx) error {
 
 	rows, err := db.DB.Query(query, args...)
 	if err != nil {
-		return c.JSON(fiber.Map{"error": err.Error()})
+		log.Printf("ApiLogs query failed: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "database error"})
 	}
 	defer rows.Close()
 
@@ -253,7 +306,10 @@ func ApiLogs(c *fiber.Ctx) error {
 		var ts, ip, qname, rtype string
 		var qtype uint16
 		var size int
-		rows.Scan(&ts, &ip, &qname, &qtype, &rtype, &size)
+		if err := rows.Scan(&ts, &ip, &qname, &qtype, &rtype, &size); err != nil {
+			log.Printf("ApiLogs scan failed: %v", err)
+			continue
+		}
 		results = append(results, map[string]interface{}{
 			"timestamp":     ts,
 			"client_ip":     ip,
@@ -263,10 +319,15 @@ func ApiLogs(c *fiber.Ctx) error {
 			"size":          size,
 		})
 	}
+	if err := rows.Err(); err != nil {
+		log.Printf("ApiLogs rows error: %v", err)
+	}
 
 	var total int64
 	countQuery := "SELECT count() FROM dns_logs" + where
-	db.DB.QueryRow(countQuery, args...).Scan(&total)
+	if err := db.DB.QueryRow(countQuery, args...).Scan(&total); err != nil {
+		log.Printf("ApiLogs count query failed: %v", err)
+	}
 
 	return c.JSON(fiber.Map{
 		"data":  results,

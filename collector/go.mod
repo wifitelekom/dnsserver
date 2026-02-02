@@ -7,7 +7,6 @@ toolchain go1.24.12
 require (
 	github.com/dnstap/golang-dnstap v0.4.0
 	github.com/farsightsec/golang-framestream v0.3.0
-	github.com/miekg/dns v1.1.72
 	google.golang.org/protobuf v1.36.11
 )
 

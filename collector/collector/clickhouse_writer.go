@@ -29,7 +29,7 @@ func NewClickHouseWriter(httpAddr string, logChan <-chan model.DNSLog) (*ClickHo
 	return &ClickHouseWriter{
 		URL:           url,
 		LogChan:       logChan,
-		BatchSize:     10000,
+		BatchSize:     50000,
 		FlushInterval: 1 * time.Second,
 		Done:          make(chan struct{}),
 		Client: &http.Client{

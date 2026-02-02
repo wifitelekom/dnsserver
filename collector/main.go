@@ -16,7 +16,7 @@ func main() {
 	socketPath := flag.String("socket", "/run/dnsdist/dnstap.sock", "Path to dnstap unix socket")
 	// HTTP address for ClickHouse (e.g. 8123)
 	clickhouseAddr := flag.String("clickhouse", "127.0.0.1:8123", "ClickHouse HTTP address")
-	bufferSize := flag.Int("buffer", 50000, "Size of the log channel buffer")
+	bufferSize := flag.Int("buffer", 100000, "Size of the log channel buffer")
 	flag.Parse()
 
 	log.Printf("Starting dnsdist-collector... Socket: %s, ClickHouse HTTP: %s\n", *socketPath, *clickhouseAddr)
