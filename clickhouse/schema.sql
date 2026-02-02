@@ -19,4 +19,4 @@ SETTINGS index_granularity = 8192,
          min_rows_for_wide_part = 0;
 
 ALTER TABLE IF EXISTS dns.dns_logs
-MODIFY TTL timestamp + INTERVAL 7 DAY;
+MODIFY TTL timestamp + INTERVAL 30 DAY;
