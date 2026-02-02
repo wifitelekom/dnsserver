@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card: #1e293b;
+            --border: #334155;
+            --input: #0b1220;
+            --muted: #94a3b8;
+            --accent: #3b82f6;
+        }
+        body { background: var(--bg); color: #e2e8f0; }
+        .card { background: var(--card); border-radius: 12px; border: 1px solid #1f2937; }
+        .field { display: flex; align-items: center; gap: 0.75rem; }
+        .field-label { min-width: 110px; font-size: 0.8rem; color: #cbd5e1; letter-spacing: 0.02em; }
+        .field-input, .field-select {
+            width: 100%;
+            background: var(--input);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0.55rem 0.75rem;
+            color: #e2e8f0;
+        }
+        .field-input::placeholder { color: var(--muted); }
+        .field-input:focus, .field-select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+        }
+    </style>
+</head>
+<body class="min-h-screen p-6">
+    <div class="max-w-7xl mx-auto">
+        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-8">
+            <div>
+                <h1 class="text-3xl font-bold text-white">Query Logs</h1>
+                <p class="text-sm text-gray-400">Filter and inspect DNS queries in detail.</p>
+            </div>
+            <div class="flex gap-4">
+                <a href="/" class="px-4 py-2 bg-gray-700 rounded-lg hover:bg-gray-600">Dashboard</a>
+                <a href="/logs" class="px-4 py-2 bg-blue-600 rounded-lg hover:bg-blue-700">Query Logs</a>
+            </div>
+        </div>
+
+        <div class="mb-6">
+            <div class="inline-flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800/50 p-1">
+                <span class="px-4 py-2 text-sm text-gray-400">View Logs</span>
+                <span class="px-4 py-2 rounded-md bg-blue-600 text-sm font-semibold text-white">Query Logs</span>
+            </div>
+        </div>
+
+        <div class="card p-6 mb-6">
+            <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between mb-6">
+                <div>
+                    <h2 class="text-lg font-semibold text-white">Query Filters</h2>
+                    <p class="text-sm text-gray-400">Narrow results by client, domain, time range, and response type.</p>
+                </div>
+                <div class="text-xs text-gray-500">Tip: Use a date range for faster searches.</div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                <div class="lg:col-span-4 field">
+                    <label for="filterIP" class="field-label">Client IP</label>
+                    <input type="text" id="filterIP" placeholder="192.168.1.10" class="field-input">
+                </div>
+                <div class="lg:col-span-5 field">
+                    <label for="filterDomain" class="field-label">Domain</label>
+                    <input type="text" id="filterDomain" placeholder="example.com" class="field-input">
+                </div>
+                <div class="lg:col-span-3 field">
+                    <label for="filterType" class="field-label">Type</label>
+                    <select id="filterType" class="field-select">
+                        <option value="">All Types</option>
+                        <option value="A">A</option>
+                        <option value="AAAA">AAAA</option>
+                        <option value="CNAME">CNAME</option>
+                        <option value="MX">MX</option>
+                        <option value="TXT">TXT</option>
+                        <option value="PTR">PTR</option>
+                        <option value="NS">NS</option>
+                        <option value="SRV">SRV</option>
+                    </select>
+                </div>
+
+                <div class="lg:col-span-3 field">
+                    <label for="filterResponseType" class="field-label">Response</label>
+                    <select id="filterResponseType" class="field-select">
+                        <option value="">All Responses</option>
+                        <option value="CR">CR</option>
+                        <option value="NR">NR</option>
+                        <option value="NX">NX</option>
+                        <option value="OK">OK</option>
+                    </select>
+                </div>
+                <div class="lg:col-span-3 field">
+                    <label for="filterOrder" class="field-label">Order</label>
+                    <select id="filterOrder" class="field-select">
+                        <option value="desc">Descending</option>
+                        <option value="asc">Ascending</option>
+                    </select>
+                </div>
+                <div class="lg:col-span-3 field">
+                    <label for="filterFrom" class="field-label">From</label>
+                    <input type="datetime-local" id="filterFrom" class="field-input">
+                </div>
+                <div class="lg:col-span-3 field">
+                    <label for="filterTo" class="field-label">To</label>
+                    <input type="datetime-local" id="filterTo" class="field-input">
+                </div>
+                <div class="lg:col-span-2 field">
+                    <label for="filterLimit" class="field-label">Logs/Page</label>
+                    <select id="filterLimit" class="field-select">
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50" selected>50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+                <div class="lg:col-span-2 field">
+                    <label for="filterPage" class="field-label">Page</label>
+                    <input type="number" id="filterPage" min="1" value="1" class="field-input">
+                </div>
+            </div>
+
+            <div class="mt-6 flex flex-wrap items-center justify-between gap-4">
+                <div id="activeFilters" class="text-sm text-gray-400">No filters applied.</div>
+                <div class="flex gap-3">
+                    <button onclick="applyFilters()" class="bg-blue-600 hover:bg-blue-700 rounded-lg px-4 py-2 text-white font-semibold">Query</button>
+                    <button onclick="exportCsv()" class="bg-gray-700 hover:bg-gray-600 rounded-lg px-4 py-2 text-white font-semibold">Export</button>
+                    <button onclick="resetFilters()" class="bg-gray-700 hover:bg-gray-600 rounded-lg px-4 py-2 text-white font-semibold">Reset</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card p-6">
+            <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between mb-4">
+                <div id="resultSummary" class="text-sm text-gray-400">Loading...</div>
+                <div id="lastUpdated" class="text-xs text-gray-500"></div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-gray-400 border-b border-gray-700">
+                            <th class="text-left py-3">Timestamp</th>
+                            <th class="text-left py-3">Client IP</th>
+                            <th class="text-left py-3">Domain</th>
+                            <th class="text-left py-3">Type</th>
+                            <th class="text-left py-3">Response</th>
+                            <th class="text-left py-3">Size</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logsTable"></tbody>
+                </table>
+            </div>
+
+            <div class="flex justify-between items-center mt-4 pt-4 border-t border-gray-700">
+                <div id="totalInfo" class="text-gray-400 text-sm"></div>
+                <div class="flex gap-2 items-center">
+                    <button id="prevBtn" onclick="prevPage()" class="px-4 py-2 bg-gray-700 rounded-lg hover:bg-gray-600 disabled:opacity-50">Previous</button>
+                    <span id="pageInfo" class="px-4 py-2 text-gray-400 text-sm"></span>
+                    <button id="nextBtn" onclick="nextPage()" class="px-4 py-2 bg-gray-700 rounded-lg hover:bg-gray-600 disabled:opacity-50">Next</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentPage = 1;
+        let totalPages = 1;
+        let currentData = [];
+
+        function getFilters() {
+            const ip = document.getElementById('filterIP').value.trim();
+            const domain = document.getElementById('filterDomain').value.trim();
+            const type = document.getElementById('filterType').value;
+            const responseType = document.getElementById('filterResponseType').value;
+            const from = document.getElementById('filterFrom').value;
+            const to = document.getElementById('filterTo').value;
+            const order = document.getElementById('filterOrder').value || 'desc';
+            const limit = parseInt(document.getElementById('filterLimit').value, 10) || 50;
+            const pageInput = parseInt(document.getElementById('filterPage').value, 10) || 1;
+
+            return { ip, domain, type, responseType, from, to, order, limit, pageInput };
+        }
+
+        function buildParams(pageOverride) {
+            const filters = getFilters();
+            const page = pageOverride || filters.pageInput || 1;
+            const params = new URLSearchParams({ page, limit: filters.limit, order: filters.order });
+
+            if (filters.ip) params.append('client_ip', filters.ip);
+            if (filters.domain) params.append('domain', filters.domain);
+            if (filters.type) params.append('type', filters.type);
+            if (filters.responseType) params.append('response_type', filters.responseType);
+            if (filters.from) params.append('from', filters.from);
+            if (filters.to) params.append('to', filters.to);
+
+            return { params, filters, page };
+        }
+
+        function updateActiveFilters(filters) {
+            const parts = [];
+            if (filters.ip) parts.push('Client: ' + filters.ip);
+            if (filters.domain) parts.push('Domain: ' + filters.domain);
+            if (filters.type) parts.push('Type: ' + filters.type);
+            if (filters.responseType) parts.push('Response: ' + filters.responseType);
+            if (filters.from) parts.push('From: ' + filters.from.replace('T', ' '));
+            if (filters.to) parts.push('To: ' + filters.to.replace('T', ' '));
+            if (filters.order) parts.push('Order: ' + filters.order.toUpperCase());
+
+            const activeFilters = document.getElementById('activeFilters');
+            activeFilters.textContent = parts.length ? 'Filters: ' + parts.join(' | ') : 'No filters applied.';
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            if (!bytes) return '-';
+            const units = ['B', 'KB', 'MB', 'GB'];
+            let size = bytes;
+            let unitIndex = 0;
+            while (size >= 1024 && unitIndex < units.length - 1) {
+                size /= 1024;
+                unitIndex++;
+            }
+            const precision = size >= 10 || unitIndex === 0 ? 0 : 1;
+            return size.toFixed(precision) + ' ' + units[unitIndex];
+        }
+
+        async function fetchLogs(pageOverride) {
+            const { params, filters, page } = buildParams(pageOverride);
+            updateActiveFilters(filters);
+
+            document.getElementById('logsTable').innerHTML = `
+                <tr class="border-b border-gray-700/50">
+                    <td class="py-4 text-gray-400" colspan="6">Loading...</td>
+                </tr>
+            `;
+
+            try {
+                const res = await fetch('/api/logs?' + params);
+                const data = await res.json();
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                currentData = data.data || [];
+                const limit = data.limit || filters.limit;
+                const total = data.total || 0;
+
+                totalPages = Math.max(1, Math.ceil(total / limit));
+                const resolvedPage = Math.min(Math.max(page, 1), totalPages);
+                if (resolvedPage !== page) {
+                    document.getElementById('filterPage').value = resolvedPage;
+                    return fetchLogs(resolvedPage);
+                }
+
+                currentPage = resolvedPage;
+                document.getElementById('filterPage').value = currentPage;
+
+                const tbody = document.getElementById('logsTable');
+                if (!currentData.length) {
+                    tbody.innerHTML = `
+                        <tr class="border-b border-gray-700/50">
+                            <td class="py-6 text-center text-gray-500" colspan="6">No results found for the selected filters.</td>
+                        </tr>
+                    `;
+                } else {
+                    tbody.innerHTML = currentData.map(log => `
+                        <tr class="border-b border-gray-700/50 hover:bg-gray-800/50">
+                            <td class="py-2 text-gray-400">${log.timestamp}</td>
+                            <td class="py-2">${log.client_ip}</td>
+                            <td class="py-2 text-blue-400 truncate max-w-md">${log.domain}</td>
+                            <td class="py-2"><span class="px-2 py-1 bg-purple-500/20 text-purple-400 rounded text-xs">${log.type}</span></td>
+                            <td class="py-2"><span class="px-2 py-1 ${log.response_type === 'CR' ? 'bg-green-500/20 text-green-400' : 'bg-blue-500/20 text-blue-400'} rounded text-xs">${log.response_type}</span></td>
+                            <td class="py-2 text-gray-400">${formatBytes(log.size)}</td>
+                        </tr>
+                    `).join('');
+                }
+
+                const start = total === 0 ? 0 : (currentPage - 1) * limit + 1;
+                const end = total === 0 ? 0 : start + currentData.length - 1;
+                document.getElementById('resultSummary').textContent = total === 0
+                    ? 'No results found.'
+                    : `Showing ${start}-${end} of ${total.toLocaleString()} records`;
+
+                document.getElementById('totalInfo').textContent = `Total: ${total.toLocaleString()} records`;
+                document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages}`;
+                document.getElementById('prevBtn').disabled = currentPage <= 1;
+                document.getElementById('nextBtn').disabled = currentPage >= totalPages;
+
+                document.getElementById('lastUpdated').textContent = 'Last updated: ' + new Date().toLocaleString();
+            } catch (err) {
+                document.getElementById('logsTable').innerHTML = `
+                    <tr class="border-b border-gray-700/50">
+                        <td class="py-6 text-center text-red-400" colspan="6">Error loading logs: ${err.message}</td>
+                    </tr>
+                `;
+                document.getElementById('resultSummary').textContent = 'Unable to load logs.';
+            }
+        }
+
+        function applyFilters() {
+            const pageValue = parseInt(document.getElementById('filterPage').value, 10) || 1;
+            fetchLogs(pageValue);
+        }
+
+        function resetFilters() {
+            document.getElementById('filterIP').value = '';
+            document.getElementById('filterDomain').value = '';
+            document.getElementById('filterType').value = '';
+            document.getElementById('filterResponseType').value = '';
+            document.getElementById('filterFrom').value = '';
+            document.getElementById('filterTo').value = '';
+            document.getElementById('filterOrder').value = 'desc';
+            document.getElementById('filterLimit').value = '50';
+            document.getElementById('filterPage').value = '1';
+            fetchLogs(1);
+        }
+
+        function exportCsv() {
+            if (!currentData.length) {
+                return;
+            }
+            const headers = ['timestamp', 'client_ip', 'domain', 'type', 'response_type', 'size'];
+            const lines = [headers.join(',')];
+            currentData.forEach(row => {
+                const line = headers.map(key => {
+                    const value = row[key] === null || row[key] === undefined ? '' : String(row[key]);
+                    return '"' + value.replace(/"/g, '""') + '"';
+                }).join(',');
+                lines.push(line);
+            });
+            const csv = lines.join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'dns-logs-' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.csv';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+
+        function prevPage() { if (currentPage > 1) fetchLogs(currentPage - 1); }
+        function nextPage() { if (currentPage < totalPages) fetchLogs(currentPage + 1); }
+
+        document.querySelectorAll('input, select').forEach(el => {
+            el.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    applyFilters();
+                }
+            });
+        });
+
+        fetchLogs(1);
+    </script>
+</body>
+</html>

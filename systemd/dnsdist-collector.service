@@ -1,0 +1,35 @@
+[Unit]
+Description=dnsdist dnstap -> ClickHouse collector
+After=network-online.target dnsdist.service clickhouse-server.service
+Wants=network-online.target
+Requires=dnsdist.service clickhouse-server.service
+
+[Service]
+Type=simple
+User=_dnsdist
+Group=_dnsdist
+UMask=0007
+
+ExecStartPre=/usr/bin/install -d -m 0755 -o _dnsdist -g _dnsdist /run/dnsdist
+ExecStartPre=-/bin/rm -f /run/dnsdist/dnstap.sock
+
+ExecStart=/usr/local/bin/dnsdist-collector --socket /run/dnsdist/dnstap.sock --clickhouse 127.0.0.1:8123 --buffer 50000
+
+Restart=always
+RestartSec=2
+StartLimitIntervalSec=0
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictRealtime=true
+ReadWritePaths=/run/dnsdist
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

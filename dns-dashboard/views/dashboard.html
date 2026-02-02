@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { background: #0f172a; color: #e2e8f0; }
+        .card { background: #1e293b; border-radius: 12px; }
+        .stat-card { background: linear-gradient(135deg, #1e293b 0%, #334155 100%); }
+    </style>
+</head>
+<body class="min-h-screen p-6">
+    <div class="max-w-7xl mx-auto">
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-3xl font-bold text-white">DNS Analytics Dashboard</h1>
+            <div class="flex gap-4">
+                <a href="/" class="px-4 py-2 bg-blue-600 rounded-lg hover:bg-blue-700">Dashboard</a>
+                <a href="/logs" class="px-4 py-2 bg-gray-700 rounded-lg hover:bg-gray-600">Query Logs</a>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="stat-card p-6 rounded-xl border border-blue-500/30">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-400 text-sm">TOTAL QUERIES</p>
+                        <p id="totalQueries" class="text-3xl font-bold text-white mt-1">-</p>
+                        <p id="todayQueries" class="text-sm text-blue-400 mt-1">Today: -</p>
+                    </div>
+                    <div class="text-blue-400 text-4xl">📊</div>
+                </div>
+            </div>
+
+            <div class="stat-card p-6 rounded-xl border border-green-500/30">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-400 text-sm">CACHE HIT RATIO</p>
+                        <p id="cacheHit" class="text-3xl font-bold text-green-400 mt-1">-</p>
+                    </div>
+                    <div class="text-green-400 text-4xl">⚡</div>
+                </div>
+            </div>
+
+            <div class="stat-card p-6 rounded-xl border border-purple-500/30">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-400 text-sm">QPS</p>
+                        <p id="qps" class="text-3xl font-bold text-purple-400 mt-1">-</p>
+                    </div>
+                    <div class="text-purple-400 text-4xl">🚀</div>
+                </div>
+            </div>
+
+            <div class="stat-card p-6 rounded-xl border border-orange-500/30">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-400 text-sm">UNIQUE CLIENTS</p>
+                        <p id="uniqueClients" class="text-3xl font-bold text-orange-400 mt-1">-</p>
+                    </div>
+                    <div class="text-orange-400 text-4xl">👥</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <div class="card p-6">
+                <h3 class="text-lg font-semibold mb-4 text-white">Query Types</h3>
+                <canvas id="queryTypesChart"></canvas>
+            </div>
+            <div class="card p-6">
+                <h3 class="text-lg font-semibold mb-4 text-white">Response Codes</h3>
+                <canvas id="responseCodesChart"></canvas>
+            </div>
+            <div class="card p-6">
+                <h3 class="text-lg font-semibold mb-4 text-white">Timeline (Last Hour)</h3>
+                <canvas id="timelineChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Tables Row -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div class="card p-6">
+                <h3 class="text-lg font-semibold mb-4 text-white">Top Domains</h3>
+                <div id="topDomains" class="space-y-2 max-h-80 overflow-y-auto"></div>
+            </div>
+            <div class="card p-6">
+                <h3 class="text-lg font-semibold mb-4 text-white">Top Clients</h3>
+                <div id="topClients" class="space-y-2 max-h-80 overflow-y-auto"></div>
+            </div>
+        </div>
+
+        <!-- Recent Queries -->
+        <div class="card p-6">
+            <h3 class="text-lg font-semibold mb-4 text-white">Recent Queries</h3>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-gray-400 border-b border-gray-700">
+                            <th class="text-left py-2">Time</th>
+                            <th class="text-left py-2">Client</th>
+                            <th class="text-left py-2">Domain</th>
+                            <th class="text-left py-2">Type</th>
+                            <th class="text-left py-2">Response</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recentQueries"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const colors = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
+        let queryTypesChart, responseCodesChart, timelineChart;
+
+        async function fetchStats() {
+            const res = await fetch('/api/stats');
+            const data = await res.json();
+            document.getElementById('totalQueries').textContent = data.total_queries.toLocaleString();
+            document.getElementById('todayQueries').textContent = 'Today: ' + data.today_queries.toLocaleString();
+            document.getElementById('cacheHit').textContent = data.cache_hit_ratio.toFixed(1) + '%';
+            document.getElementById('qps').textContent = data.qps.toFixed(1);
+            document.getElementById('uniqueClients').textContent = data.unique_clients.toLocaleString();
+        }
+
+        async function fetchQueryTypes() {
+            const res = await fetch('/api/query-types');
+            const data = await res.json();
+            if (queryTypesChart) queryTypesChart.destroy();
+            queryTypesChart = new Chart(document.getElementById('queryTypesChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: data.map(d => d.type),
+                    datasets: [{
+                        data: data.map(d => d.count),
+                        backgroundColor: colors
+                    }]
+                },
+                options: { plugins: { legend: { position: 'bottom', labels: { color: '#e2e8f0' } } } }
+            });
+        }
+
+        async function fetchResponseCodes() {
+            const res = await fetch('/api/response-codes');
+            const data = await res.json();
+            if (responseCodesChart) responseCodesChart.destroy();
+            responseCodesChart = new Chart(document.getElementById('responseCodesChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: data.map(d => d.code),
+                    datasets: [{
+                        data: data.map(d => d.count),
+                        backgroundColor: colors
+                    }]
+                },
+                options: { plugins: { legend: { position: 'bottom', labels: { color: '#e2e8f0' } } } }
+            });
+        }
+
+        async function fetchTimeline() {
+            const res = await fetch('/api/timeline');
+            const data = await res.json();
+            if (timelineChart) timelineChart.destroy();
+            timelineChart = new Chart(document.getElementById('timelineChart'), {
+                type: 'line',
+                data: {
+                    labels: data.map(d => d.time),
+                    datasets: [{
+                        label: 'Queries',
+                        data: data.map(d => d.count),
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    scales: {
+                        x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+                        y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        async function fetchTopDomains() {
+            const res = await fetch('/api/top-domains');
+            const data = await res.json();
+            const container = document.getElementById('topDomains');
+            const max = data[0]?.count || 1;
+            container.innerHTML = data.map(d => `
+                <div class="flex items-center gap-3">
+                    <div class="flex-1">
+                        <div class="text-sm text-gray-300 truncate">${d.domain}</div>
+                        <div class="h-2 bg-gray-700 rounded mt-1">
+                            <div class="h-2 bg-blue-500 rounded" style="width: ${(d.count/max*100)}%"></div>
+                        </div>
+                    </div>
+                    <div class="text-sm text-gray-400 w-16 text-right">${d.count.toLocaleString()}</div>
+                </div>
+            `).join('');
+        }
+
+        async function fetchTopClients() {
+            const res = await fetch('/api/top-clients');
+            const data = await res.json();
+            const container = document.getElementById('topClients');
+            const max = data[0]?.count || 1;
+            container.innerHTML = data.map(d => `
+                <div class="flex items-center gap-3">
+                    <div class="flex-1">
+                        <div class="text-sm text-gray-300">${d.ip}</div>
+                        <div class="h-2 bg-gray-700 rounded mt-1">
+                            <div class="h-2 bg-green-500 rounded" style="width: ${(d.count/max*100)}%"></div>
+                        </div>
+                    </div>
+                    <div class="text-sm text-gray-400 w-16 text-right">${d.count.toLocaleString()}</div>
+                </div>
+            `).join('');
+        }
+
+        async function fetchRecentQueries() {
+            const res = await fetch('/api/recent-queries');
+            const data = await res.json();
+            const tbody = document.getElementById('recentQueries');
+            tbody.innerHTML = data.map(q => `
+                <tr class="border-b border-gray-700/50 hover:bg-gray-800/50">
+                    <td class="py-2 text-gray-400">${q.timestamp}</td>
+                    <td class="py-2">${q.client_ip}</td>
+                    <td class="py-2 text-blue-400 truncate max-w-xs">${q.domain}</td>
+                    <td class="py-2"><span class="px-2 py-1 bg-purple-500/20 text-purple-400 rounded text-xs">${q.type}</span></td>
+                    <td class="py-2"><span class="px-2 py-1 ${q.response_type === 'CR' ? 'bg-green-500/20 text-green-400' : 'bg-blue-500/20 text-blue-400'} rounded text-xs">${q.response_type}</span></td>
+                </tr>
+            `).join('');
+        }
+
+        function refreshAll() {
+            fetchStats();
+            fetchQueryTypes();
+            fetchResponseCodes();
+            fetchTimeline();
+            fetchTopDomains();
+            fetchTopClients();
+            fetchRecentQueries();
+        }
+
+        refreshAll();
+        setInterval(refreshAll, 10000);
+    </script>
+</body>
+</html>
