@@ -1,0 +1,6 @@
+# Blocklist (suffix / wildcard)
+# One domain per line. Supported:
+# - bad.example
+# - *.malware.example
+# - .tracking.example
+

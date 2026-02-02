@@ -1,6 +1,8 @@
 module dnsdist-collector
 
-go 1.25.4
+go 1.24
+
+toolchain go1.24.12
 
 require (
 	github.com/dnstap/golang-dnstap v0.4.0

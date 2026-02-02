@@ -8,6 +8,7 @@ import (
 	"dns-dashboard/handlers"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/basicauth"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/template/html/v2"
 )
@@ -15,6 +16,12 @@ import (
 func main() {
 	clickhouseDSN := getEnv("CLICKHOUSE_DSN", "tcp://127.0.0.1:9000?database=dns")
 	listenAddr := getEnv("LISTEN_ADDR", ":8080")
+	authUser := getEnv("DASHBOARD_USER", "")
+	authPass := getEnv("DASHBOARD_PASS", "")
+
+	if authUser == "" || authPass == "" {
+		log.Fatal("DASHBOARD_USER and DASHBOARD_PASS must be set")
+	}
 
 	if err := db.InitDB(clickhouseDSN); err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
@@ -27,6 +34,12 @@ func main() {
 	})
 
 	app.Use(cors.New())
+	app.Use(basicauth.New(basicauth.Config{
+		Users: map[string]string{
+			authUser: authPass,
+		},
+		Realm: "DNS Dashboard",
+	}))
 
 	// Routes
 	app.Get("/", handlers.Dashboard)

@@ -12,6 +12,8 @@ Restart=always
 RestartSec=5s
 Environment="CLICKHOUSE_DSN=tcp://127.0.0.1:9000?database=dns"
 Environment="LISTEN_ADDR=:8080"
+Environment="DASHBOARD_USER=admin"
+Environment="DASHBOARD_PASS=change_me"
 # Ensure simple file descriptor limits are high enough
 LimitNOFILE=65536
 

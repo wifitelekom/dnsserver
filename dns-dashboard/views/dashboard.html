@@ -31,7 +31,7 @@
                         <p id="totalQueries" class="text-3xl font-bold text-white mt-1">-</p>
                         <p id="todayQueries" class="text-sm text-blue-400 mt-1">Today: -</p>
                     </div>
-                    <div class="text-blue-400 text-4xl">📊</div>
+                    <div class="text-blue-400 text-2xl font-bold">Q</div>
                 </div>
             </div>
 
@@ -41,7 +41,7 @@
                         <p class="text-gray-400 text-sm">CACHE HIT RATIO</p>
                         <p id="cacheHit" class="text-3xl font-bold text-green-400 mt-1">-</p>
                     </div>
-                    <div class="text-green-400 text-4xl">⚡</div>
+                    <div class="text-green-400 text-2xl font-bold">%</div>
                 </div>
             </div>
 
@@ -51,7 +51,7 @@
                         <p class="text-gray-400 text-sm">QPS</p>
                         <p id="qps" class="text-3xl font-bold text-purple-400 mt-1">-</p>
                     </div>
-                    <div class="text-purple-400 text-4xl">🚀</div>
+                    <div class="text-purple-400 text-2xl font-bold">Q/s</div>
                 </div>
             </div>
 
@@ -61,7 +61,7 @@
                         <p class="text-gray-400 text-sm">UNIQUE CLIENTS</p>
                         <p id="uniqueClients" class="text-3xl font-bold text-orange-400 mt-1">-</p>
                     </div>
-                    <div class="text-orange-400 text-4xl">👥</div>
+                    <div class="text-orange-400 text-2xl font-bold">IP</div>
                 </div>
             </div>
         </div>
@@ -123,7 +123,12 @@
             const data = await res.json();
             document.getElementById('totalQueries').textContent = data.total_queries.toLocaleString();
             document.getElementById('todayQueries').textContent = 'Today: ' + data.today_queries.toLocaleString();
-            document.getElementById('cacheHit').textContent = data.cache_hit_ratio.toFixed(1) + '%';
+            const cacheHit = document.getElementById('cacheHit');
+            if (data.cache_hit_ratio === null || data.cache_hit_ratio === undefined || data.cache_hit_ratio < 0) {
+                cacheHit.textContent = 'N/A';
+            } else {
+                cacheHit.textContent = data.cache_hit_ratio.toFixed(1) + '%';
+            }
             document.getElementById('qps').textContent = data.qps.toFixed(1);
             document.getElementById('uniqueClients').textContent = data.unique_clients.toLocaleString();
         }

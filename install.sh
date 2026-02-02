@@ -41,9 +41,6 @@ install_clickhouse_repo() {
 
   echo "deb [signed-by=/etc/apt/keyrings/clickhouse.gpg arch=${ARCH}] https://packages.clickhouse.com/deb stable main" \
     | sudo tee /etc/apt/sources.list.d/clickhouse.list >/dev/null
-}
-
-
   apt-get update
 }
 
@@ -79,6 +76,8 @@ deploy_unbound_conf() {
 deploy_dnsdist_conf() {
   log "Deploying dnsdist configuration"
   install -m 0644 "${DNSDIST_CONF_SRC}" "${DNSDIST_CONF_DST}"
+  install -m 0644 ./dnsdist/allowlist.txt /etc/dnsdist/allowlist.txt
+  install -m 0644 ./dnsdist/blocklist.txt /etc/dnsdist/blocklist.txt
 
   # Validate config
   dnsdist -C "${DNSDIST_CONF_DST}" --check-config

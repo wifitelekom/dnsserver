@@ -1,6 +1,4 @@
-DROP TABLE IF EXISTS dns.dns_logs;
-
-CREATE TABLE dns.dns_logs
+CREATE TABLE IF NOT EXISTS dns.dns_logs
 (
   `timestamp` DateTime,
   `client_ip` IPv6,
@@ -14,4 +12,8 @@ CREATE TABLE dns.dns_logs
 ENGINE = MergeTree
 PARTITION BY toYYYYMMDD(timestamp)
 ORDER BY (timestamp, client_ip)
+TTL timestamp + INTERVAL 7 DAY
 SETTINGS index_granularity = 8192;
+
+ALTER TABLE IF EXISTS dns.dns_logs
+MODIFY TTL timestamp + INTERVAL 7 DAY;

@@ -88,13 +88,11 @@
                 </div>
 
                 <div class="lg:col-span-3 field">
-                    <label for="filterResponseType" class="field-label">Response</label>
+                    <label for="filterResponseType" class="field-label">Log Type</label>
                     <select id="filterResponseType" class="field-select">
-                        <option value="">All Responses</option>
+                        <option value="">All Types</option>
+                        <option value="CQ">CQ</option>
                         <option value="CR">CR</option>
-                        <option value="NR">NR</option>
-                        <option value="NX">NX</option>
-                        <option value="OK">OK</option>
                     </select>
                 </div>
                 <div class="lg:col-span-3 field">
@@ -208,7 +206,7 @@
             if (filters.ip) parts.push('Client: ' + filters.ip);
             if (filters.domain) parts.push('Domain: ' + filters.domain);
             if (filters.type) parts.push('Type: ' + filters.type);
-            if (filters.responseType) parts.push('Response: ' + filters.responseType);
+            if (filters.responseType) parts.push('Log Type: ' + filters.responseType);
             if (filters.from) parts.push('From: ' + filters.from.replace('T', ' '));
             if (filters.to) parts.push('To: ' + filters.to.replace('T', ' '));
             if (filters.order) parts.push('Order: ' + filters.order.toUpperCase());

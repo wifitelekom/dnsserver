@@ -1,0 +1,71 @@
+# Allowlist (suffix / wildcard)
+# One domain per line. Supported:
+# - example.com
+# - *.example.com
+# - .example.com
+
+# Google / YouTube
+google.com
+youtube.com
+ytimg.com
+googleapis.com
+gstatic.com
+googleusercontent.com
+ggpht.com
+
+# Meta / WhatsApp / Instagram
+facebook.com
+fbcdn.net
+fbsbx.com
+instagram.com
+cdninstagram.com
+whatsapp.net
+
+# Telegram
+telegram.org
+t.me
+
+# Amazon / AWS
+amazon.com
+amazonaws.com
+cloudfront.net
+
+# Netflix
+netflix.com
+nflxvideo.net
+nflximg.net
+nflxext.com
+nflxso.net
+
+# Apple
+apple.com
+icloud.com
+mzstatic.com
+apple-dns.net
+
+# Microsoft
+microsoft.com
+windows.com
+windowsupdate.com
+office.com
+office365.com
+live.com
+outlook.com
+azure.com
+azureedge.net
+msedge.net
+
+# CDN / Infra
+cloudflare.com
+cloudflare-dns.com
+akamai.net
+akamaihd.net
+akamaized.net
+fastly.net
+fastlylb.net
+
+# Streaming / others
+spotify.com
+scdn.co
+twitch.tv
+ttvnw.net
