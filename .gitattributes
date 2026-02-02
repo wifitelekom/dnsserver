@@ -1,0 +1,23 @@
+# Ensure all shell scripts and config files use LF line endings
+* text=auto eol=lf
+
+# Shell scripts
+*.sh text eol=lf
+
+# Config files
+*.conf text eol=lf
+*.sql text eol=lf
+
+# Go files
+*.go text eol=lf
+*.mod text eol=lf
+*.sum text eol=lf
+
+# Other text files
+*.txt text eol=lf
+*.md text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+
+# Binary files
+*.exe binary
