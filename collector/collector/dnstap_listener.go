@@ -16,6 +16,9 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// ClickHouse DateTime format
+const chDateTimeFormat = "2006-01-02 15:04:05"
+
 // DnsTapListener listens on a Unix socket for dnstap frames.
 type DnsTapListener struct {
 	SocketPath string
@@ -87,6 +90,19 @@ func (l *DnsTapListener) Stop() {
 	l.wg.Wait()
 }
 
+// formatIPv6 converts an IP to ClickHouse IPv6 compatible format.
+// IPv4 addresses are converted to IPv6-mapped format (::ffff:x.x.x.x)
+func formatIPv6(ip net.IP) string {
+	if ip == nil {
+		return "::1" // fallback to localhost
+	}
+	if ip4 := ip.To4(); ip4 != nil {
+		// IPv4 -> IPv6-mapped format
+		return "::ffff:" + ip4.String()
+	}
+	return ip.String()
+}
+
 func (l *DnsTapListener) handleConn(conn net.Conn) {
 	defer l.wg.Done()
 	defer conn.Close()
@@ -124,8 +140,18 @@ func (l *DnsTapListener) handleConn(conn net.Conn) {
 			continue
 		}
 
+		// Get timestamp and truncate to seconds
+		var recordTime time.Time
+		if t == dnstap.Message_CLIENT_RESPONSE && msg.ResponseTimeSec != nil {
+			recordTime = time.Unix(int64(*msg.ResponseTimeSec), 0)
+		} else if t == dnstap.Message_CLIENT_QUERY && msg.QueryTimeSec != nil {
+			recordTime = time.Unix(int64(*msg.QueryTimeSec), 0)
+		} else {
+			recordTime = time.Now().UTC().Truncate(time.Second)
+		}
+
 		parsedLog := model.DNSLog{
-			Timestamp: time.Now(),
+			Timestamp: recordTime.UTC().Format(chDateTimeFormat),
 		}
 
 		// Map to CQ/CR (compact)
@@ -135,16 +161,12 @@ func (l *DnsTapListener) handleConn(conn net.Conn) {
 			parsedLog.ResponseType = "CR"
 		}
 
-		// Use query/response timestamps from dnstap if available
-		if t == dnstap.Message_CLIENT_RESPONSE && msg.ResponseTimeSec != nil {
-			parsedLog.Timestamp = time.Unix(int64(*msg.ResponseTimeSec), int64(msg.GetResponseTimeNsec()))
-		} else if t == dnstap.Message_CLIENT_QUERY && msg.QueryTimeSec != nil {
-			parsedLog.Timestamp = time.Unix(int64(*msg.QueryTimeSec), int64(msg.GetQueryTimeNsec()))
-		}
-
 		// Client IP from QueryAddress (dnsdist sees real client IP)
+		// Convert to IPv6 format for ClickHouse IPv6 column
 		if msg.QueryAddress != nil {
-			parsedLog.ClientIP = net.IP(msg.QueryAddress).String()
+			parsedLog.ClientIP = formatIPv6(net.IP(msg.QueryAddress))
+		} else {
+			parsedLog.ClientIP = "::1" // fallback
 		}
 
 		// Choose packet data based on message type
