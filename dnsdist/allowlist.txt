@@ -69,3 +69,11 @@ spotify.com
 scdn.co
 twitch.tv
 ttvnw.net
+mozilla.com
+github.com
+jsdelivr.net
+tailwindcss.com
+cambiumnetworks.com
+akamaitech.net
+akadns.net
+firefox.com

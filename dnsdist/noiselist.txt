@@ -1,0 +1,9 @@
+# Reverse lookups
+in-addr.arpa
+ip6.arpa
+
+# Service discovery
+_dns-sd._udp
+
+# Local-ish
+local

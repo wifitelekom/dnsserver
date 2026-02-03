@@ -52,46 +52,48 @@ func fetchDnsdistCacheHitRatio() float64 {
 	}
 
 	client := &http.Client{Timeout: 2 * time.Second}
-	req, err := http.NewRequest("GET", dnsdistURL+"/api/v1/servers/localhost/statistics", nil)
+
+	// Try the jsonstat endpoint first (simpler format)
+	req, err := http.NewRequest("GET", dnsdistURL+"/jsonstat?command=stats", nil)
 	if err != nil {
+		log.Printf("dnsdist API request error: %v", err)
 		return -1
 	}
 	req.Header.Set("X-API-Key", apiKey)
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Printf("dnsdist API error: %v", err)
+		log.Printf("dnsdist API connection error: %v", err)
 		return -1
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		log.Printf("dnsdist API status: %d", resp.StatusCode)
 		return -1
 	}
 
-	var statsData []struct {
-		Name  string `json:"name"`
-		Value int64  `json:"value"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&statsData); err != nil {
+	// Parse JSON response - dnsdist returns object with stats
+	var statsMap map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&statsMap); err != nil {
+		log.Printf("dnsdist API JSON decode error: %v", err)
 		return -1
 	}
 
-	var cacheHits, cacheMisses int64
-	for _, s := range statsData {
-		switch s.Name {
-		case "cache-hits":
-			cacheHits = s.Value
-		case "cache-misses":
-			cacheMisses = s.Value
-		}
+	// Extract cache-hits and cache-misses
+	var cacheHits, cacheMisses float64
+	if v, ok := statsMap["cache-hits"]; ok {
+		cacheHits, _ = v.(float64)
+	}
+	if v, ok := statsMap["cache-misses"]; ok {
+		cacheMisses, _ = v.(float64)
 	}
 
 	total := cacheHits + cacheMisses
 	if total == 0 {
 		return 0
 	}
-	return float64(cacheHits) / float64(total) * 100
+	return cacheHits / total * 100
 }
 
 func ApiQueryTypes(c *fiber.Ctx) error {
@@ -315,8 +317,9 @@ func ApiLogs(c *fiber.Ctx) error {
 	args := []interface{}{}
 
 	if clientIP != "" {
-		where += " AND client_ip = ?"
-		args = append(args, clientIP)
+		// Support both IPv4 and IPv6-mapped format (::ffff:x.x.x.x)
+		where += " AND (toString(client_ip) LIKE ? OR toString(client_ip) LIKE ?)"
+		args = append(args, "%"+clientIP+"%", "%::ffff:"+clientIP+"%")
 	}
 	if domain != "" {
 		where += " AND qname LIKE ?"
