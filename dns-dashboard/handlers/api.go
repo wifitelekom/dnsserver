@@ -96,6 +96,101 @@ func fetchDnsdistCacheHitRatio() float64 {
 	return cacheHits / total * 100
 }
 
+// ApiDnsdistStats returns all dnsdist statistics
+func ApiDnsdistStats(c *fiber.Ctx) error {
+	dnsdistURL := os.Getenv("DNSDIST_API_URL")
+	if dnsdistURL == "" {
+		dnsdistURL = "http://127.0.0.1:8083"
+	}
+	apiKey := os.Getenv("DNSDIST_API_KEY")
+	if apiKey == "" {
+		apiKey = "supersecretAPIkey"
+	}
+
+	client := &http.Client{Timeout: 2 * time.Second}
+	req, err := http.NewRequest("GET", dnsdistURL+"/jsonstat?command=stats", nil)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "request error"})
+	}
+	req.Header.Set("X-API-Key", apiKey)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "dnsdist unavailable"})
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{"error": "dnsdist error"})
+	}
+
+	var statsMap map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&statsMap); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "parse error"})
+	}
+
+	// Extract useful metrics
+	getFloat := func(key string) float64 {
+		if v, ok := statsMap[key]; ok {
+			if f, ok := v.(float64); ok {
+				return f
+			}
+		}
+		return 0
+	}
+
+	result := fiber.Map{
+		// Cache
+		"cache_hits":      getFloat("cache-hits"),
+		"cache_misses":    getFloat("cache-misses"),
+		"cache_hit_ratio": 0.0,
+
+		// Queries
+		"queries":   getFloat("queries"),
+		"responses": getFloat("responses"),
+
+		// Response codes
+		"frontend_noerror":  getFloat("frontend-noerror"),
+		"frontend_nxdomain": getFloat("frontend-nxdomain"),
+		"frontend_servfail": getFloat("frontend-servfail"),
+
+		// Latency (microseconds)
+		"latency_avg100":   getFloat("latency-avg100") / 1000,   // to ms
+		"latency_avg1000":  getFloat("latency-avg1000") / 1000,  // to ms
+		"latency_avg10000": getFloat("latency-avg10000") / 1000, // to ms
+
+		// Latency histogram
+		"latency_0_1":      getFloat("latency0-1"),
+		"latency_1_10":     getFloat("latency1-10"),
+		"latency_10_50":    getFloat("latency10-50"),
+		"latency_50_100":   getFloat("latency50-100"),
+		"latency_100_1000": getFloat("latency100-1000"),
+		"latency_slow":     getFloat("latency-slow"),
+
+		// Errors & Security
+		"downstream_timeouts": getFloat("downstream-timeouts"),
+		"acl_drops":           getFloat("acl-drops"),
+		"dyn_blocked":         getFloat("dyn-blocked"),
+		"rule_drop":           getFloat("rule-drop"),
+		"rule_refused":        getFloat("rule-refused"),
+
+		// System
+		"uptime":       getFloat("uptime"),
+		"memory_usage": getFloat("real-memory-usage") / 1024 / 1024, // to MB
+		"cpu_user_ms":  getFloat("cpu-user-msec"),
+		"cpu_sys_ms":   getFloat("cpu-sys-msec"),
+	}
+
+	// Calculate cache hit ratio
+	cacheHits := getFloat("cache-hits")
+	cacheMisses := getFloat("cache-misses")
+	if total := cacheHits + cacheMisses; total > 0 {
+		result["cache_hit_ratio"] = cacheHits / total * 100
+	}
+
+	return c.JSON(result)
+}
+
 func ApiQueryTypes(c *fiber.Ctx) error {
 	rows, err := db.DB.Query(`
 		SELECT qtype, count() as cnt 

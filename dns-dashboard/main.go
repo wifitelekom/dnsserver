@@ -50,6 +50,7 @@ func main() {
 	app.Get("/api/top-clients", handlers.ApiTopClients)
 	app.Get("/api/recent-queries", handlers.ApiRecentQueries)
 	app.Get("/api/timeline", handlers.ApiTimeline)
+	app.Get("/api/dnsdist-stats", handlers.ApiDnsdistStats)
 	app.Get("/logs", handlers.LogsPage)
 	app.Get("/api/logs", handlers.ApiLogs)
 

@@ -78,6 +78,50 @@
             </div>
         </div>
 
+        <!-- dnsdist Stats Row -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="stat-card p-6 rounded-xl border border-cyan-500/30">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-400 text-sm">AVG LATENCY</p>
+                        <p id="avgLatency" class="text-3xl font-bold text-cyan-400 mt-1">-</p>
+                        <p class="text-sm text-gray-500 mt-1">Last 100 queries</p>
+                    </div>
+                    <div class="text-cyan-400 text-2xl font-bold">ms</div>
+                </div>
+            </div>
+
+            <div class="stat-card p-6 rounded-xl border border-pink-500/30">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-400 text-sm">UPTIME</p>
+                        <p id="uptime" class="text-3xl font-bold text-pink-400 mt-1">-</p>
+                    </div>
+                    <div class="text-pink-400 text-2xl font-bold">⏱</div>
+                </div>
+            </div>
+
+            <div class="stat-card p-6 rounded-xl border border-yellow-500/30">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-400 text-sm">MEMORY</p>
+                        <p id="memoryUsage" class="text-3xl font-bold text-yellow-400 mt-1">-</p>
+                    </div>
+                    <div class="text-yellow-400 text-2xl font-bold">MB</div>
+                </div>
+            </div>
+
+            <div class="stat-card p-6 rounded-xl border border-red-500/30">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-400 text-sm">TIMEOUTS</p>
+                        <p id="timeouts" class="text-3xl font-bold text-red-400 mt-1">-</p>
+                    </div>
+                    <div class="text-red-400 text-2xl font-bold">⚠</div>
+                </div>
+            </div>
+        </div>
+
         <!-- Charts Row -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
             <div class="card p-6">
@@ -91,6 +135,18 @@
             <div class="card p-6">
                 <h3 class="text-lg font-semibold mb-4 text-white">Timeline (Last Hour)</h3>
                 <canvas id="timelineChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Latency Histogram & Frontend Responses -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div class="card p-6">
+                <h3 class="text-lg font-semibold mb-4 text-white">Latency Distribution</h3>
+                <canvas id="latencyHistogram"></canvas>
+            </div>
+            <div class="card p-6">
+                <h3 class="text-lg font-semibold mb-4 text-white">Response Status Distribution</h3>
+                <canvas id="frontendResponsesChart"></canvas>
             </div>
         </div>
 
@@ -259,12 +315,75 @@
 
         function refreshAll() {
             fetchStats();
+            fetchDnsdistStats();
             fetchQueryTypes();
             fetchResponseCodes();
             fetchTimeline();
             fetchTopDomains();
             fetchTopClients();
             fetchRecentQueries();
+        }
+
+        let latencyHistogram, frontendResponsesChart;
+
+        async function fetchDnsdistStats() {
+            try {
+                const res = await fetch('/api/dnsdist-stats');
+                if (!res.ok) throw new Error('Failed to fetch');
+                const data = await res.json();
+
+                // Update stat cards
+                document.getElementById('avgLatency').textContent = data.latency_avg100.toFixed(1);
+                document.getElementById('memoryUsage').textContent = data.memory_usage.toFixed(1);
+                document.getElementById('timeouts').textContent = data.downstream_timeouts.toLocaleString();
+
+                // Uptime formatting
+                const uptime = data.uptime;
+                const hours = Math.floor(uptime / 3600);
+                const mins = Math.floor((uptime % 3600) / 60);
+                if (hours > 24) {
+                    document.getElementById('uptime').textContent = Math.floor(hours / 24) + 'd ' + (hours % 24) + 'h';
+                } else {
+                    document.getElementById('uptime').textContent = hours + 'h ' + mins + 'm';
+                }
+
+                // Latency Histogram
+                if (latencyHistogram) latencyHistogram.destroy();
+                latencyHistogram = new Chart(document.getElementById('latencyHistogram'), {
+                    type: 'bar',
+                    data: {
+                        labels: ['0-1ms', '1-10ms', '10-50ms', '50-100ms', '100ms-1s', '>1s'],
+                        datasets: [{
+                            label: 'Queries',
+                            data: [data.latency_0_1, data.latency_1_10, data.latency_10_50, data.latency_50_100, data.latency_100_1000, data.latency_slow],
+                            backgroundColor: ['#22c55e', '#84cc16', '#eab308', '#f97316', '#ef4444', '#dc2626']
+                        }]
+                    },
+                    options: {
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+                            x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
+                        }
+                    }
+                });
+
+                // Frontend Responses Chart
+                if (frontendResponsesChart) frontendResponsesChart.destroy();
+                frontendResponsesChart = new Chart(document.getElementById('frontendResponsesChart'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['NOERROR', 'NXDOMAIN', 'SERVFAIL'],
+                        datasets: [{
+                            data: [data.frontend_noerror, data.frontend_nxdomain, data.frontend_servfail],
+                            backgroundColor: ['#22c55e', '#f59e0b', '#ef4444']
+                        }]
+                    },
+                    options: { plugins: { legend: { position: 'bottom', labels: { color: '#e2e8f0' } } } }
+                });
+            } catch (e) {
+                console.log('dnsdist stats unavailable');
+            }
         }
 
         refreshAll();
