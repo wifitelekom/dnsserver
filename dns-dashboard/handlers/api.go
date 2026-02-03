@@ -1,8 +1,11 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -30,9 +33,65 @@ func ApiStats(c *fiber.Ctx) error {
 		log.Printf("ApiStats query failed: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "database error"})
 	}
-	stats.CacheHitRatio = -1
+
+	// Fetch cache hit ratio from dnsdist API
+	stats.CacheHitRatio = fetchDnsdistCacheHitRatio()
 
 	return c.JSON(stats)
+}
+
+// fetchDnsdistCacheHitRatio fetches cache statistics from dnsdist web API
+func fetchDnsdistCacheHitRatio() float64 {
+	dnsdistURL := os.Getenv("DNSDIST_API_URL")
+	if dnsdistURL == "" {
+		dnsdistURL = "http://127.0.0.1:8083"
+	}
+	apiKey := os.Getenv("DNSDIST_API_KEY")
+	if apiKey == "" {
+		apiKey = "supersecretAPIkey"
+	}
+
+	client := &http.Client{Timeout: 2 * time.Second}
+	req, err := http.NewRequest("GET", dnsdistURL+"/api/v1/servers/localhost/statistics", nil)
+	if err != nil {
+		return -1
+	}
+	req.Header.Set("X-API-Key", apiKey)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("dnsdist API error: %v", err)
+		return -1
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return -1
+	}
+
+	var statsData []struct {
+		Name  string `json:"name"`
+		Value int64  `json:"value"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&statsData); err != nil {
+		return -1
+	}
+
+	var cacheHits, cacheMisses int64
+	for _, s := range statsData {
+		switch s.Name {
+		case "cache-hits":
+			cacheHits = s.Value
+		case "cache-misses":
+			cacheMisses = s.Value
+		}
+	}
+
+	total := cacheHits + cacheMisses
+	if total == 0 {
+		return 0
+	}
+	return float64(cacheHits) / float64(total) * 100
 }
 
 func ApiQueryTypes(c *fiber.Ctx) error {
