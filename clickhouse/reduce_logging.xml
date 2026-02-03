@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+<clickhouse>
+    <!-- Disable or reduce system log tables to save CPU -->
+    
+    <!-- Disable text log (verbose debug logs) -->
+    <text_log remove="1"/>
+    
+    <!-- Disable trace log (stack traces) -->
+    <trace_log remove="1"/>
+    
+    <!-- Disable query thread log -->
+    <query_thread_log remove="1"/>
+    
+    <!-- Disable processors profile log -->
+    <processors_profile_log remove="1"/>
+    
+    <!-- Reduce query log frequency -->
+    <query_log>
+        <flush_interval_milliseconds>30000</flush_interval_milliseconds>
+    </query_log>
+    
+    <!-- Reduce metric log frequency -->
+    <metric_log>
+        <flush_interval_milliseconds>60000</flush_interval_milliseconds>
+    </metric_log>
+    
+    <!-- Reduce part log frequency -->
+    <part_log>
+        <flush_interval_milliseconds>60000</flush_interval_milliseconds>
+    </part_log>
+    
+    <!-- Reduce asynchronous metric log -->
+    <asynchronous_metric_log>
+        <flush_interval_milliseconds>120000</flush_interval_milliseconds>
+    </asynchronous_metric_log>
+    
+    <!-- MergeTree optimizations for low traffic -->
+    <merge_tree>
+        <!-- Merge less frequently -->
+        <merge_max_block_size>8192</merge_max_block_size>
+        <max_bytes_to_merge_at_min_space_in_pool>1073741824</max_bytes_to_merge_at_min_space_in_pool>
+    </merge_tree>
+</clickhouse>
