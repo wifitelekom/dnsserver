@@ -24,13 +24,15 @@ type ClickHouseWriter struct {
 
 func NewClickHouseWriter(httpAddr string, logChan <-chan model.DNSLog) (*ClickHouseWriter, error) {
 	// httpAddr must be "ip:8123"
-	url := fmt.Sprintf("http://%s/?query=INSERT+INTO+dns.dns_logs+FORMAT+JSONEachRow", httpAddr)
+	// async_insert=1: ClickHouse buffers small inserts and merges them
+	// wait_for_async_insert=0: Don't wait for insert confirmation (faster)
+	url := fmt.Sprintf("http://%s/?query=INSERT+INTO+dns.dns_logs+FORMAT+JSONEachRow&async_insert=1&wait_for_async_insert=0", httpAddr)
 
 	return &ClickHouseWriter{
 		URL:           url,
 		LogChan:       logChan,
 		BatchSize:     50000,
-		FlushInterval: 1 * time.Second,
+		FlushInterval: 5 * time.Second, // Increased: let more logs accumulate
 		Done:          make(chan struct{}),
 		Client: &http.Client{
 			Timeout: 10 * time.Second,
