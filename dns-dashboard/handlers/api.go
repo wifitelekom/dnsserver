@@ -447,7 +447,7 @@ func ApiLogs(c *fiber.Ctx) error {
 	query := `
 		SELECT 
 			formatDateTime(timestamp, '%Y-%m-%d %H:%i:%S') as ts,
-			replaceOne(toString(client_ip), '::ffff:', '') as client_ip, qname, qtype, response_type, response_size
+			replaceOne(toString(client_ip), '::ffff:', '') as ip, qname, qtype, response_type, response_size
 		FROM dns_logs
 	` + where + fmt.Sprintf(" ORDER BY timestamp %s LIMIT %d OFFSET %d", order, limit, offset)
 
