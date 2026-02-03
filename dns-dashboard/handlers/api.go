@@ -412,9 +412,9 @@ func ApiLogs(c *fiber.Ctx) error {
 	args := []interface{}{}
 
 	if clientIP != "" {
-		// Support both IPv4 and IPv6-mapped format (::ffff:x.x.x.x)
-		where += " AND (toString(client_ip) LIKE ? OR toString(client_ip) LIKE ?)"
-		args = append(args, "%"+clientIP+"%", "%::ffff:"+clientIP+"%")
+		// Search in string representation which includes both formats
+		where += " AND toString(client_ip) LIKE ?"
+		args = append(args, "%"+clientIP+"%")
 	}
 	if domain != "" {
 		where += " AND qname LIKE ?"
