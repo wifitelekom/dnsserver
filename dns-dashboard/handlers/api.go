@@ -130,7 +130,7 @@ func ApiTopDomains(c *fiber.Ctx) error {
 
 func ApiTopClients(c *fiber.Ctx) error {
 	rows, err := db.DB.Query(`
-		SELECT client_ip, count() as cnt 
+		SELECT toString(client_ip) as client_ip, count() as cnt 
 		FROM dns_logs 
 		WHERE response_type = 'CQ' AND timestamp >= today()
 		GROUP BY client_ip 
@@ -162,7 +162,7 @@ func ApiRecentQueries(c *fiber.Ctx) error {
 	rows, err := db.DB.Query(`
 		SELECT 
 			formatDateTime(timestamp, '%Y-%m-%d %H:%M:%S') as ts,
-			client_ip, qname, qtype, response_type 
+			toString(client_ip) as client_ip, qname, qtype, response_type 
 		FROM dns_logs 
 		WHERE response_type = 'CQ' 
 		ORDER BY timestamp DESC 
@@ -290,7 +290,7 @@ func ApiLogs(c *fiber.Ctx) error {
 	query := `
 		SELECT 
 			formatDateTime(timestamp, '%Y-%m-%d %H:%M:%S') as ts,
-			client_ip, qname, qtype, response_type, response_size
+			toString(client_ip) as client_ip, qname, qtype, response_type, response_size
 		FROM dns_logs
 	` + where + fmt.Sprintf(" ORDER BY timestamp %s LIMIT %d OFFSET %d", order, limit, offset)
 
